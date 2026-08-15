@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/ArunGautham-Soundarrajan/grubhook/internal/gmailclient"
+	"github.com/ArunGautham-Soundarrajan/grubhook/internal/parser"
 	"github.com/joho/godotenv"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -37,12 +38,15 @@ func main() {
 		log.Fatal("error initialising gmail service", err)
 	}
 
-	r, err := srv.Users.Labels.List("me").Do()
+	messages, err := parser.GetLast30dMessageIDs(ctx, srv, "noreply@t.deliveroo.com")
 	if err != nil {
-		log.Fatalf("error fetching labels: %v", err)
+		log.Fatalf("error fetching messages: %v", err)
 	}
-
-	for _, l := range r.Labels {
-		fmt.Println(l.Name)
+	for _, m := range messages {
+		orderDetails, err := parser.GetOrderTotalFromMsg(ctx, srv, m)
+		if err != nil {
+			log.Println("error parsing details for message id:", m.Id, err)
+		}
+		fmt.Printf("%+v\n", orderDetails)
 	}
 }
