@@ -23,7 +23,7 @@ func deliverooHTMLParser(r io.Reader) (OrderDetails, error) {
 		return OrderDetails{}, err
 	}
 	return OrderDetails{
-		store: store,
-		total: total,
+		Store: store,
+		Total: total,
 	}, nil
 }

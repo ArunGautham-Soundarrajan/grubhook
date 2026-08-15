@@ -8,6 +8,7 @@ import (
 	"io"
 	"mime/quotedprintable"
 	"strings"
+	"time"
 
 	"google.golang.org/api/gmail/v1"
 )
@@ -69,19 +70,22 @@ func GetOrderTotalFromMsg(ctx context.Context, srv *gmail.Service, m *gmail.Mess
 	}
 
 	var data OrderDetails
+	data.Date = time.UnixMilli(msg.InternalDate)
 	switch {
 	case strings.Contains(partner, "deliveroo"):
 		data, err = deliverooHTMLParser(bytes.NewReader(decoded))
-		data.partner = partner
+		data.Partner = partner
 		if err != nil {
 			return OrderDetails{}, fmt.Errorf("parsing deliveroo html: %w", err)
 		}
 	case strings.Contains(partner, "uber"):
-		data, err = uberEatsHTMLParser(bytes.NewReader(decoded))
-		data.partner = partner
-		if err != nil {
-			return OrderDetails{}, fmt.Errorf("parsing uber eats html: %w", err)
-		}
+
+		// os.WriteFile("uberEats.html", decoded, 0o644)
+		// data, err = uberEatsHTMLParser(bytes.NewReader(decoded))
+		// data.partner = partner
+		// if err != nil {
+		// 	return OrderDetails{}, fmt.Errorf("parsing uber eats html: %w", err)
+		// }
 	default:
 		return OrderDetails{}, fmt.Errorf("unrecognized sender: %q", partner)
 	}

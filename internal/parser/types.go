@@ -1,7 +1,10 @@
 package parser
 
+import "time"
+
 type OrderDetails struct {
-	partner string
-	store   string
-	total   float64
+	Partner string
+	Store   string
+	Total   float64
+	Date    time.Time
 }
