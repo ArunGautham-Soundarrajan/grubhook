@@ -13,8 +13,8 @@ import (
 	"google.golang.org/api/gmail/v1"
 )
 
-func GetLast30dMessageIDs(ctx context.Context, srv *gmail.Service, from string) ([]*gmail.Message, error) {
-	query := "from:" + from + " newer_than:30d"
+func GetLast30dMessageIDs(ctx context.Context, srv *gmail.Service, label string) ([]*gmail.Message, error) {
+	query := "label:" + label + " newer_than:30d"
 	r, err := srv.Users.Messages.List("me").Q(query).Do()
 	if err != nil {
 		return nil, err
@@ -70,11 +70,9 @@ func GetOrderTotalFromMsg(ctx context.Context, srv *gmail.Service, m *gmail.Mess
 	}
 
 	var data OrderDetails
-	data.Date = time.UnixMilli(msg.InternalDate)
 	switch {
 	case strings.Contains(partner, "deliveroo"):
 		data, err = deliverooHTMLParser(bytes.NewReader(decoded))
-		data.Partner = partner
 		if err != nil {
 			return OrderDetails{}, fmt.Errorf("parsing deliveroo html: %w", err)
 		}
@@ -89,6 +87,9 @@ func GetOrderTotalFromMsg(ctx context.Context, srv *gmail.Service, m *gmail.Mess
 	default:
 		return OrderDetails{}, fmt.Errorf("unrecognized sender: %q", partner)
 	}
+
+	data.Date = time.UnixMilli(msg.InternalDate)
+	data.Partner = partner
 
 	return data, nil
 }

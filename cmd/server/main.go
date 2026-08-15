@@ -38,7 +38,7 @@ func main() {
 		log.Fatal("error initialising gmail service", err)
 	}
 
-	messages, err := parser.GetLast30dMessageIDs(ctx, srv, "noreply@t.deliveroo.com")
+	messages, err := parser.GetLast30dMessageIDs(ctx, srv, "takeaways")
 	if err != nil {
 		log.Fatalf("error fetching messages: %v", err)
 	}
