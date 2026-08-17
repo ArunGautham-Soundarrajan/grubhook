@@ -35,8 +35,8 @@ func findHTMLPart(part *gmail.MessagePart) *gmail.MessagePart {
 	return nil
 }
 
-func GetOrderTotalFromMsg(ctx context.Context, srv *gmail.Service, m *gmail.Message) (OrderDetails, error) {
-	msg, err := srv.Users.Messages.Get("me", m.Id).Format("full").Do()
+func GetOrderTotalFromMsg(ctx context.Context, srv *gmail.Service, id string) (OrderDetails, error) {
+	msg, err := srv.Users.Messages.Get("me", id).Format("full").Do()
 	if err != nil {
 		return OrderDetails{}, fmt.Errorf("fetching message: %w", err)
 	}
@@ -51,12 +51,12 @@ func GetOrderTotalFromMsg(ctx context.Context, srv *gmail.Service, m *gmail.Mess
 	}
 
 	if partner == "" {
-		return OrderDetails{}, fmt.Errorf("no From header found in message %s", m.Id)
+		return OrderDetails{}, fmt.Errorf("no From header found in message %s", id)
 	}
 
 	htmlPart := findHTMLPart(msg.Payload)
 	if htmlPart == nil {
-		return OrderDetails{}, fmt.Errorf("no text/html part found in message %s", m.Id)
+		return OrderDetails{}, fmt.Errorf("no text/html part found in message %s", id)
 	}
 
 	body, err := base64.URLEncoding.DecodeString(htmlPart.Body.Data)
