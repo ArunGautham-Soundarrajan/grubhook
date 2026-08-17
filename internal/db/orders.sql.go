@@ -35,6 +35,110 @@ func (q *Queries) ExistingMessageIDs(ctx context.Context) ([]string, error) {
 	return items, nil
 }
 
+const getLastOrderDate = `-- name: GetLastOrderDate :one
+SELECT order_date FROM orders
+ORDER BY order_date DESC
+LIMIT 1
+`
+
+func (q *Queries) GetLastOrderDate(ctx context.Context) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, getLastOrderDate)
+	var order_date pgtype.Timestamptz
+	err := row.Scan(&order_date)
+	return order_date, err
+}
+
+const getMonthAverage = `-- name: GetMonthAverage :one
+SELECT COALESCE(AVG(total), 0)::numeric(10,2) as average
+FROM orders
+WHERE order_date >= date_trunc('month', now())
+  AND order_date < date_trunc('month', now()) + interval '1 month'
+`
+
+func (q *Queries) GetMonthAverage(ctx context.Context) (pgtype.Numeric, error) {
+	row := q.db.QueryRow(ctx, getMonthAverage)
+	var average pgtype.Numeric
+	err := row.Scan(&average)
+	return average, err
+}
+
+const getMonthOrderCount = `-- name: GetMonthOrderCount :one
+SELECT COUNT(*) as count
+FROM orders
+WHERE order_date >= date_trunc('month', now())
+  AND order_date < date_trunc('month', now()) + interval '1 month'
+`
+
+func (q *Queries) GetMonthOrderCount(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, getMonthOrderCount)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const getMonthTotal = `-- name: GetMonthTotal :one
+SELECT COALESCE(SUM(total), 0)::numeric(10,2) as total
+FROM orders
+WHERE order_date >= date_trunc('month', now())
+  AND order_date < date_trunc('month', now()) + interval '1 month'
+`
+
+func (q *Queries) GetMonthTotal(ctx context.Context) (pgtype.Numeric, error) {
+	row := q.db.QueryRow(ctx, getMonthTotal)
+	var total pgtype.Numeric
+	err := row.Scan(&total)
+	return total, err
+}
+
+const getPrevMonthTotal = `-- name: GetPrevMonthTotal :one
+SELECT COALESCE(SUM(total), 0)::numeric(10,2) as total
+FROM orders
+WHERE order_date >= date_trunc('month', now()) - interval '1 month'
+  AND order_date < date_trunc('month', now())
+`
+
+func (q *Queries) GetPrevMonthTotal(ctx context.Context) (pgtype.Numeric, error) {
+	row := q.db.QueryRow(ctx, getPrevMonthTotal)
+	var total pgtype.Numeric
+	err := row.Scan(&total)
+	return total, err
+}
+
+const getTopSpenders = `-- name: GetTopSpenders :many
+SELECT store, SUM(total)::numeric(10,2) as total
+FROM orders
+WHERE order_date >= date_trunc('month', now())
+  AND order_date < date_trunc('month', now()) + interval '1 month'
+GROUP BY store
+ORDER BY total DESC
+LIMIT 3
+`
+
+type GetTopSpendersRow struct {
+	Store string
+	Total pgtype.Numeric
+}
+
+func (q *Queries) GetTopSpenders(ctx context.Context) ([]GetTopSpendersRow, error) {
+	rows, err := q.db.Query(ctx, getTopSpenders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTopSpendersRow
+	for rows.Next() {
+		var i GetTopSpendersRow
+		if err := rows.Scan(&i.Store, &i.Total); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const insertOrder = `-- name: InsertOrder :exec
 INSERT INTO orders (message_id, partner, store, total, order_date)
 VALUES ($1, $2, $3, $4, $5)
@@ -58,17 +162,4 @@ func (q *Queries) InsertOrder(ctx context.Context, arg InsertOrderParams) error 
 		arg.OrderDate,
 	)
 	return err
-}
-
-const sumLastNDays = `-- name: SumLastNDays :one
-SELECT COALESCE(SUM(total), 0)::float8 AS total
-FROM orders
-WHERE order_date >= now() - make_interval(days => $1::int)
-`
-
-func (q *Queries) SumLastNDays(ctx context.Context, days int32) (float64, error) {
-	row := q.db.QueryRow(ctx, sumLastNDays, days)
-	var total float64
-	err := row.Scan(&total)
-	return total, err
 }
