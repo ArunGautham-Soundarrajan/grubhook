@@ -13,8 +13,8 @@ import (
 	"google.golang.org/api/gmail/v1"
 )
 
-func GetLast30dMessageIDs(ctx context.Context, srv *gmail.Service, label string) ([]*gmail.Message, error) {
-	query := "label:" + label + " newer_than:30d"
+func GetLastNdMessageIDs(ctx context.Context, srv *gmail.Service, label string, days string) ([]*gmail.Message, error) {
+	query := "label:" + label + " newer_than:" + days + "d"
 	r, err := srv.Users.Messages.List("me").Q(query).Do()
 	if err != nil {
 		return nil, err

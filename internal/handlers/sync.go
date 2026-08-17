@@ -24,7 +24,7 @@ func (h *Handler) Sync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	messages, err := parser.GetLast30dMessageIDs(ctx, h.GmailSrv, "takeaways")
+	messages, err := parser.GetLastNdMessageIDs(ctx, h.GmailSrv, "takeaways", "30")
 	if err != nil {
 		http.Error(w, "failed to fetch messages", http.StatusInternalServerError)
 		return
