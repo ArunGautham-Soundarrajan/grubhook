@@ -55,7 +55,7 @@ func main() {
 	}
 
 	queries := db.New(pool)
-	statsHandler := &handlers.StatsHandler{
+	statsHandler := &handlers.Handler{
 		GmailSrv: srv,
 		Queries:  queries,
 		Pool:     pool,

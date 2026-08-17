@@ -6,11 +6,12 @@ import (
 	"github.com/ArunGautham-Soundarrajan/grubhook/internal/handlers"
 )
 
-func NewRouter(stats *handlers.StatsHandler) http.Handler {
+func NewRouter(h *handlers.Handler) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", handlers.Healthz)
-	mux.HandleFunc("GET /readyz", stats.Readyz)
-	mux.HandleFunc("GET /stats", stats.GetMonthlyStats)
+	mux.HandleFunc("GET /readyz", h.Readyz)
+	mux.HandleFunc("GET /stats", h.GetMonthlyStats)
+	mux.HandleFunc("GET /sync", h.Sync)
 
 	return mux
 }
