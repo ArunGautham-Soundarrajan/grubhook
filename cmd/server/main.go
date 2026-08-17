@@ -2,16 +2,20 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
+	"net/http"
 	"os"
 
+	"github.com/ArunGautham-Soundarrajan/grubhook/internal/api"
+	"github.com/ArunGautham-Soundarrajan/grubhook/internal/db"
 	"github.com/ArunGautham-Soundarrajan/grubhook/internal/gmailclient"
-	"github.com/ArunGautham-Soundarrajan/grubhook/internal/parser"
+	"github.com/ArunGautham-Soundarrajan/grubhook/internal/handlers"
 	"github.com/joho/godotenv"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/gmail/v1"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -33,20 +37,31 @@ func main() {
 
 	ctx := context.Background()
 
+	// gmail service setup
 	srv, err := gmailclient.New(ctx, tok, config)
 	if err != nil {
 		log.Fatal("error initialising gmail service", err)
 	}
 
-	messages, err := parser.GetLast30dMessageIDs(ctx, srv, "takeaways")
+	// postgres setup
+	pool, err := pgxpool.New(ctx, os.Getenv("GOOSE_DBSTRING"))
 	if err != nil {
-		log.Fatalf("error fetching messages: %v", err)
+		log.Fatal("error opening db pool", err)
 	}
-	for _, m := range messages {
-		orderDetails, err := parser.GetOrderTotalFromMsg(ctx, srv, m)
-		if err != nil {
-			log.Println("error parsing details for message id:", m.Id, err)
-		}
-		fmt.Printf("%+v\n", orderDetails)
+	defer pool.Close()
+
+	if err := pool.Ping(ctx); err != nil {
+		log.Fatal("error connecting to db", err)
 	}
+
+	queries := db.New(pool)
+	statsHandler := &handlers.StatsHandler{
+		GmailSrv: srv,
+		Queries:  queries,
+		Pool:     pool,
+	}
+
+	// router
+	router := api.NewRouter(statsHandler)
+	log.Fatal(http.ListenAndServe(":8080", router))
 }
