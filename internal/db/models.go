@@ -9,10 +9,10 @@ import (
 )
 
 type Order struct {
-	MessageID string
-	Partner   string
-	Store     string
-	Total     pgtype.Numeric
-	OrderDate pgtype.Timestamptz
-	SyncedAt  pgtype.Timestamptz
+	OrderID        string
+	RestaurantID   string
+	Total          pgtype.Numeric
+	RestaurantName string
+	OrderDate      pgtype.Timestamptz
+	SyncedAt       pgtype.Timestamptz
 }

@@ -4,10 +4,7 @@ default:
     just --list
 
 dev:
-    go run cmd/server/main.go
-
-auth:
-    go run cmd/authsetup/main.go
+    go run main.go -rod=show
 
 sqlc:
     sqlc generate

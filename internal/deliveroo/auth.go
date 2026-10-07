@@ -1,0 +1,94 @@
+package deliveroo
+
+import (
+	"fmt"
+	"log"
+	"math/rand"
+	"time"
+
+	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/input"
+	"github.com/go-rod/rod/lib/proto"
+)
+
+const (
+	cookieBannerButton = "#__next > div.CustomCookieBanner-39382a7d9c5bd12f > div > div.CustomCookieBanner-6bcaa32076f4e46c > span:nth-child(2) > button"
+	cookieBannerWait   = 5 * time.Second
+	loginWait          = 30 * time.Second
+)
+
+func (c *Client) Login(email, password string) error {
+	c.acceptCookies()
+
+	emailField, err := c.element("#inline-email-address")
+	if err != nil {
+		return fmt.Errorf("login: %w", err)
+	}
+	if err := humanType(c.page, emailField, email); err != nil {
+		return fmt.Errorf("login: typing email: %w", err)
+	}
+	pause(500, 1500)
+	if err := c.click("#continue-with-email"); err != nil {
+		return fmt.Errorf("login: %w", err)
+	}
+
+	passwordField, err := c.element("#login-password")
+	if err != nil {
+		return fmt.Errorf("login: %w", err)
+	}
+	if err := humanType(c.page, passwordField, password); err != nil {
+		return fmt.Errorf("login: typing password: %w", err)
+	}
+	pause(500, 1500)
+	if err := c.click("#email-password-submit"); err != nil {
+		return fmt.Errorf("login: %w", err)
+	}
+
+	// A successful login redirects away from /login.
+	err = c.page.Timeout(loginWait).Wait(rod.Eval(`() => !location.pathname.startsWith("/login")`))
+	if err != nil {
+		return fmt.Errorf("login: still on login page after %s (wrong credentials, captcha or 2FA?): %w", loginWait, err)
+	}
+	return nil
+}
+
+// acceptCookies dismisses the cookie banner if it shows up. A missing banner
+// is not an error: it may already be accepted, or the page may have changed.
+func (c *Client) acceptCookies() {
+	el, err := c.page.Timeout(cookieBannerWait).Element(cookieBannerButton)
+	if err != nil {
+		log.Println("cookie banner not found, continuing")
+		return
+	}
+	if err := el.CancelTimeout().Click(proto.InputMouseButtonLeft, 1); err != nil {
+		log.Println("clicking cookie banner: ", err)
+	}
+}
+
+func (c *Client) click(selector string) error {
+	el, err := c.element(selector)
+	if err != nil {
+		return err
+	}
+	if err := el.Click(proto.InputMouseButtonLeft, 1); err != nil {
+		return fmt.Errorf("clicking %q: %w", selector, err)
+	}
+	return nil
+}
+
+func pause(minMs, maxMs int) {
+	time.Sleep(time.Duration(minMs+rand.Intn(maxMs-minMs)) * time.Millisecond)
+}
+
+func humanType(p *rod.Page, el *rod.Element, text string) error {
+	if err := el.Click(proto.InputMouseButtonLeft, 1); err != nil { // focus first
+		return err
+	}
+	for _, r := range text {
+		if err := p.Keyboard.Type(input.Key(r)); err != nil {
+			return err
+		}
+		pause(80, 220)
+	}
+	return nil
+}
