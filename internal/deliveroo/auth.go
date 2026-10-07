@@ -15,6 +15,8 @@ const (
 	cookieBannerButton = "#__next > div.CustomCookieBanner-39382a7d9c5bd12f > div > div.CustomCookieBanner-6bcaa32076f4e46c > span:nth-child(2) > button"
 	cookieBannerWait   = 5 * time.Second
 	loginWait          = 30 * time.Second
+	passwordInput      = "#login-password"
+	enterPasswordText  = "Enter password"
 )
 
 func (c *Client) Login(email, password string) error {
@@ -32,7 +34,7 @@ func (c *Client) Login(email, password string) error {
 		return fmt.Errorf("login: %w", err)
 	}
 
-	passwordField, err := c.element("#login-password")
+	passwordField, err := c.passwordField()
 	if err != nil {
 		return fmt.Errorf("login: %w", err)
 	}
@@ -63,6 +65,30 @@ func (c *Client) acceptCookies() {
 	if err := el.CancelTimeout().Click(proto.InputMouseButtonLeft, 1); err != nil {
 		log.Println("clicking cookie banner: ", err)
 	}
+}
+
+// passwordField returns the password input. Deliveroo sometimes shows a
+// one-time code page first; its "Enter password" button switches to the
+// password form.
+func (c *Client) passwordField() (*rod.Element, error) {
+	el, err := c.page.Timeout(stepTimeout).Race().
+		Element(passwordInput).
+		ElementR("button, a", enterPasswordText).
+		Do()
+	if err != nil {
+		return nil, fmt.Errorf("finding password field or %q button: %w", enterPasswordText, err)
+	}
+	el = el.CancelTimeout()
+
+	if isInput, err := el.Matches(passwordInput); err != nil || isInput {
+		return el, err
+	}
+
+	log.Println("one-time code page shown, switching to password")
+	if err := el.Click(proto.InputMouseButtonLeft, 1); err != nil {
+		return nil, fmt.Errorf("clicking %q: %w", enterPasswordText, err)
+	}
+	return c.element(passwordInput)
 }
 
 func (c *Client) click(selector string) error {
