@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 )
 
@@ -22,7 +23,17 @@ type Client struct {
 // New launches a browser and opens the login page. Every browser operation
 // is bound to ctx, so cancelling it or hitting its deadline stops the scrape.
 func New(ctx context.Context) (*Client, error) {
-	browser := rod.New().Context(ctx).SlowMotion(400 * time.Millisecond)
+	// Prefer an installed Chrome/Chromium; rod only downloads its own if none is found.
+	l := launcher.New().Context(ctx)
+	if bin, ok := launcher.LookPath(); ok {
+		l = l.Bin(bin)
+	}
+	controlURL, err := l.Launch()
+	if err != nil {
+		return nil, fmt.Errorf("launching browser: %w", err)
+	}
+
+	browser := rod.New().Context(ctx).ControlURL(controlURL).SlowMotion(400 * time.Millisecond)
 	if err := browser.Connect(); err != nil {
 		return nil, fmt.Errorf("connecting to browser: %w", err)
 	}

@@ -12,7 +12,8 @@ RUN CGO_ENABLED=0 go build -o /out/grubhook . \
 
 FROM debian:trixie-slim
 
-# rod finds /usr/bin/chromium on its own and adds --no-sandbox inside containers.
+# deliveroo.New launches /usr/bin/chromium via launcher.LookPath; rod adds
+# --no-sandbox inside containers.
 RUN apt-get update \
  && apt-get upgrade -y \
  && apt-get install -y --no-install-recommends chromium ca-certificates fonts-liberation \
