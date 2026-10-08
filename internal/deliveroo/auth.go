@@ -2,7 +2,7 @@ package deliveroo
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"math/rand"
 	"time"
 
@@ -33,6 +33,7 @@ func (c *Client) Login(email, password string) error {
 	if err := c.click("#continue-with-email"); err != nil {
 		return fmt.Errorf("login: %w", err)
 	}
+	slog.Info("login: email submitted")
 
 	passwordField, err := c.passwordField()
 	if err != nil {
@@ -45,12 +46,14 @@ func (c *Client) Login(email, password string) error {
 	if err := c.click("#email-password-submit"); err != nil {
 		return fmt.Errorf("login: %w", err)
 	}
+	slog.Info("login: password submitted")
 
 	// A successful login redirects away from /login.
 	err = c.page.Timeout(loginWait).Wait(rod.Eval(`() => !location.pathname.startsWith("/login")`))
 	if err != nil {
 		return fmt.Errorf("login: still on login page after %s (wrong credentials, captcha or 2FA?): %w", loginWait, err)
 	}
+	slog.Info("login: succeeded", "url", c.currentURL())
 	return nil
 }
 
@@ -59,11 +62,11 @@ func (c *Client) Login(email, password string) error {
 func (c *Client) acceptCookies() {
 	el, err := c.page.Timeout(cookieBannerWait).Element(cookieBannerButton)
 	if err != nil {
-		log.Println("cookie banner not found, continuing")
+		slog.Info("cookie banner not found, continuing")
 		return
 	}
 	if err := el.CancelTimeout().Click(proto.InputMouseButtonLeft, 1); err != nil {
-		log.Println("clicking cookie banner: ", err)
+		slog.Warn("clicking cookie banner", "err", err)
 	}
 }
 
@@ -84,11 +87,20 @@ func (c *Client) passwordField() (*rod.Element, error) {
 		return el, err
 	}
 
-	log.Println("one-time code page shown, switching to password")
+	slog.Info("login: one-time code page shown, switching to password")
 	if err := el.Click(proto.InputMouseButtonLeft, 1); err != nil {
 		return nil, fmt.Errorf("clicking %q: %w", enterPasswordText, err)
 	}
 	return c.element(passwordInput)
+}
+
+// currentURL returns the page URL for logging, or "" if it can't be read.
+func (c *Client) currentURL() string {
+	info, err := c.page.Info()
+	if err != nil {
+		return ""
+	}
+	return info.URL
 }
 
 func (c *Client) click(selector string) error {

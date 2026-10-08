@@ -10,13 +10,21 @@ type Config struct {
 	DatabaseURL       string
 	DeliverooEmail    string
 	DeliverooPassword string
+	// ArtifactsDir is where failure screenshots and page HTML are written.
+	ArtifactsDir string
 }
+
+const defaultArtifactsDir = "output"
 
 func Load() (Config, error) {
 	cfg := Config{
 		DatabaseURL:       os.Getenv("GOOSE_DBSTRING"),
 		DeliverooEmail:    os.Getenv("DELIVEROO_EMAIL"),
 		DeliverooPassword: os.Getenv("DELIVEROO_PASSWORD"),
+		ArtifactsDir:      os.Getenv("ARTIFACTS_DIR"),
+	}
+	if cfg.ArtifactsDir == "" {
+		cfg.ArtifactsDir = defaultArtifactsDir
 	}
 
 	var missing []string

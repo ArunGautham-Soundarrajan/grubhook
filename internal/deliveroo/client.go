@@ -3,7 +3,6 @@ package deliveroo
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/go-rod/rod"
@@ -53,15 +52,6 @@ func New(ctx context.Context) (*Client, error) {
 func (c *Client) Close() error {
 	// Detach from ctx so the browser still closes after a timeout.
 	return c.browser.Context(context.Background()).Close()
-}
-
-// SaveScreenshot writes the current page to path, for debugging failures.
-func (c *Client) SaveScreenshot(path string) error {
-	img, err := c.page.Context(context.Background()).Timeout(10*time.Second).Screenshot(true, nil)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, img, 0o644)
 }
 
 // element waits up to stepTimeout for selector to appear.
