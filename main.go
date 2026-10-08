@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/ArunGautham-Soundarrajan/grubhook/internal/config"
@@ -15,11 +17,13 @@ import (
 // scrapeTimeout bounds the whole browser session: login plus fetching orders.
 const scrapeTimeout = 3 * time.Minute
 
-const failureScreenshot = "failure.png"
-
 func main() {
+	// JSON logs so fields (url, err, ...) are queryable once shipped to Loki.
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
 	if err := run(); err != nil {
-		log.Fatal(err)
+		slog.Error("run failed", "err", err)
+		os.Exit(1)
 	}
 }
 
@@ -40,21 +44,21 @@ func run() error {
 	if err := pool.Ping(ctx); err != nil {
 		return fmt.Errorf("connecting to db: %w", err)
 	}
-	log.Println("config loaded, database connected")
+	slog.Info("config loaded, database connected")
 
 	orders, err := scrapeOrders(ctx, cfg)
 	if err != nil {
 		return err
 	}
 	if len(orders) == 0 {
-		log.Println("no orders on account")
+		slog.Info("no orders on account")
 	}
 
 	inserted, err := store.SaveOrders(ctx, pool, orders)
 	if err != nil {
 		return fmt.Errorf("saving orders: %w", err)
 	}
-	log.Printf("fetched %d orders, %d new", len(orders), inserted)
+	slog.Info("orders synced", "fetched", len(orders), "new", inserted)
 	return nil
 }
 
@@ -69,13 +73,8 @@ func scrapeOrders(ctx context.Context, cfg config.Config) (orders []deliveroo.Or
 	defer client.Close()
 
 	defer func() {
-		if err == nil {
-			return
-		}
-		if shotErr := client.SaveScreenshot(failureScreenshot); shotErr != nil {
-			log.Println("saving failure screenshot: ", shotErr)
-		} else {
-			log.Println("saved failure screenshot to ", failureScreenshot)
+		if err != nil {
+			saveFailureDiagnostics(client, cfg.ArtifactsDir)
 		}
 	}()
 
@@ -83,4 +82,37 @@ func scrapeOrders(ctx context.Context, cfg config.Config) (orders []deliveroo.Or
 		return nil, err
 	}
 	return client.FetchOrders()
+}
+
+// saveFailureDiagnostics logs what the page showed when the scrape failed and
+// writes a screenshot and the page HTML to dir. Each step is best effort: a
+// failure here is logged, never returned, so it can't mask the real error.
+func saveFailureDiagnostics(client *deliveroo.Client, dir string) {
+	if d, err := client.Diagnose(); err != nil {
+		slog.Error("reading page at failure", "err", err)
+	} else {
+		slog.Error("page at failure",
+			"url", d.URL,
+			"title", d.Title,
+			"messages", d.Messages,
+			"body_text", d.BodyText,
+		)
+	}
+
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		slog.Error("creating artifacts dir", "dir", dir, "err", err)
+		return
+	}
+	prefix := filepath.Join(dir, time.Now().UTC().Format("20060102T150405Z")+"-failure")
+
+	if err := client.SaveScreenshot(prefix + ".png"); err != nil {
+		slog.Error("saving failure screenshot", "err", err)
+	} else {
+		slog.Info("saved failure screenshot", "path", prefix+".png")
+	}
+	if err := client.SaveHTML(prefix + ".html"); err != nil {
+		slog.Error("saving failure page HTML", "err", err)
+	} else {
+		slog.Info("saved failure page HTML", "path", prefix+".html")
+	}
 }
