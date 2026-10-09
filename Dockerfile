@@ -1,4 +1,4 @@
-FROM golang:1.26-trixie AS build
+FROM public.ecr.aws/docker/library/golang:1.26-trixie AS build
 
 WORKDIR /src
 
@@ -10,7 +10,7 @@ RUN CGO_ENABLED=0 go build -o /out/grubhook . \
  && CGO_ENABLED=0 go install github.com/pressly/goose/v3/cmd/goose@v3.28.0 \
  && cp "$(go env GOPATH)/bin/goose" /out/goose
 
-FROM debian:trixie-slim
+FROM public.ecr.aws/docker/library/debian:trixie-slim
 
 # deliveroo.New launches /usr/bin/chromium via launcher.LookPath; rod adds
 # --no-sandbox inside containers.
