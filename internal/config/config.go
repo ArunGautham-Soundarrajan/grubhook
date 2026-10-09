@@ -12,6 +12,9 @@ type Config struct {
 	DeliverooPassword string
 	// ArtifactsDir is where failure screenshots and page HTML are written.
 	ArtifactsDir string
+	// CookiesFile optionally points to a JSON cookie export of a logged-in
+	// session, used to skip the login form.
+	CookiesFile string
 }
 
 const defaultArtifactsDir = "output"
@@ -22,6 +25,7 @@ func Load() (Config, error) {
 		DeliverooEmail:    os.Getenv("DELIVEROO_EMAIL"),
 		DeliverooPassword: os.Getenv("DELIVEROO_PASSWORD"),
 		ArtifactsDir:      os.Getenv("ARTIFACTS_DIR"),
+		CookiesFile:       os.Getenv("DELIVEROO_COOKIES_FILE"),
 	}
 	if cfg.ArtifactsDir == "" {
 		cfg.ArtifactsDir = defaultArtifactsDir
