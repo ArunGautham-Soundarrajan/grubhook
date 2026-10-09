@@ -19,9 +19,10 @@ type Client struct {
 	page    *rod.Page
 }
 
-// New launches a browser and opens the login page. Every browser operation
-// is bound to ctx, so cancelling it or hitting its deadline stops the scrape.
-func New(ctx context.Context) (*Client, error) {
+// New launches a browser, sets any saved cookies and opens the login page.
+// Every browser operation is bound to ctx, so cancelling it or hitting its
+// deadline stops the scrape.
+func New(ctx context.Context, cookies []*proto.NetworkCookieParam) (*Client, error) {
 	// Prefer an installed Chrome/Chromium; rod only downloads its own if none is found.
 	l := launcher.New().Context(ctx)
 	if bin, ok := launcher.LookPath(); ok {
@@ -35,6 +36,13 @@ func New(ctx context.Context) (*Client, error) {
 	browser := rod.New().Context(ctx).ControlURL(controlURL).SlowMotion(400 * time.Millisecond)
 	if err := browser.Connect(); err != nil {
 		return nil, fmt.Errorf("connecting to browser: %w", err)
+	}
+
+	if len(cookies) > 0 {
+		if err := browser.SetCookies(cookies); err != nil {
+			browser.Close()
+			return nil, fmt.Errorf("setting cookies: %w", err)
+		}
 	}
 
 	page, err := browser.Page(proto.TargetCreateTarget{URL: "https://deliveroo.co.uk/login"})

@@ -20,6 +20,15 @@ const (
 )
 
 func (c *Client) Login(email, password string) error {
+	// With a valid saved session, Deliveroo redirects away from /login.
+	if err := c.page.Timeout(stepTimeout).WaitStable(time.Second); err != nil {
+		return fmt.Errorf("login: waiting for login page: %w", err)
+	}
+	if !c.onLoginPage() {
+		slog.Info("login: already logged in from saved cookies", "url", c.currentURL())
+		return nil
+	}
+
 	c.acceptCookies()
 
 	emailField, err := c.element("#inline-email-address")
@@ -92,6 +101,11 @@ func (c *Client) passwordField() (*rod.Element, error) {
 		return nil, fmt.Errorf("clicking %q: %w", enterPasswordText, err)
 	}
 	return c.element(passwordInput)
+}
+
+func (c *Client) onLoginPage() bool {
+	res, err := c.page.Eval(`() => location.pathname.startsWith("/login")`)
+	return err != nil || res.Value.Bool()
 }
 
 // currentURL returns the page URL for logging, or "" if it can't be read.

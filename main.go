@@ -11,6 +11,7 @@ import (
 	"github.com/ArunGautham-Soundarrajan/grubhook/internal/config"
 	"github.com/ArunGautham-Soundarrajan/grubhook/internal/deliveroo"
 	"github.com/ArunGautham-Soundarrajan/grubhook/internal/store"
+	"github.com/go-rod/rod/lib/proto"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -66,7 +67,15 @@ func scrapeOrders(ctx context.Context, cfg config.Config) (orders []deliveroo.Or
 	ctx, cancel := context.WithTimeout(ctx, scrapeTimeout)
 	defer cancel()
 
-	client, err := deliveroo.New(ctx)
+	var cookies []*proto.NetworkCookieParam
+	if cfg.CookiesFile != "" {
+		if cookies, err = deliveroo.LoadCookies(cfg.CookiesFile); err != nil {
+			return nil, err
+		}
+		slog.Info("loaded saved cookies", "count", len(cookies))
+	}
+
+	client, err := deliveroo.New(ctx, cookies)
 	if err != nil {
 		return nil, err
 	}
